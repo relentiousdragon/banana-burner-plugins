@@ -1,0 +1,8 @@
+{
+  "name": "Bulk Server Manager",
+  "author": "agentzzrp",
+  "version": "2.7",
+  "timestamp": "1771448350",
+  "description": "Select multiple servers and perform batch actions, restart, stop, or start all at once.",
+  "downloads": 8
+}
