@@ -99,7 +99,7 @@ return {
             return `
                 <div class="info-item sn-card-note" style="margin-top: 4px; padding-top: 4px; border-top: 1px dashed var(--border-light); cursor: help;" title="${lastNote.text.replace(/"/g, '&quot;')}">
                     <i class="fas fa-sticky-note" style="color: #fbbf24; font-size: 0.75rem; margin-right: 6px;"></i>
-                    <span style="font-size: 0.8rem; font-style: italic; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${text}</span>
+                    <span class="notranslate" style="font-size: 0.8rem; font-style: italic; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${text}</span>
                 </div>`;
         });
 
