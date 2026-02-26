@@ -234,7 +234,17 @@ window.__git_saveConfig = async (serverId, config) => {
 
     const details = BananaAPI.getDetails(serverId);
     const attrs = details?.attributes || details || {};
-    const entryPoint = attrs.startup?.START_JS_FILE || attrs.START_JS_FILE || attrs.startup_command?.match(/node\s+([^\s]+)/)?.[1] || 'index.js';
+
+    let entryPoint = 'index.js';
+    let runtime = 'node';
+
+    if (BananaAPI.isPythonServer(details)) {
+        entryPoint = attrs.startup?.START_PY_FILE || attrs.START_PY_FILE || 'main.py';
+        runtime = 'python3';
+    } else {
+        entryPoint = attrs.startup?.START_JS_FILE || attrs.START_JS_FILE || attrs.startup_command?.match(/node\s+([^\s]+)/)?.[1] || 'index.js';
+        runtime = 'node';
+    }
 
     const shellScript = `#!/bin/bash
 ${SIGNATURE}
@@ -258,7 +268,7 @@ else
 fi
 
 echo "Branch: $BRANCH"
-echo "Repository: $user/$repoName"
+echo "Repository: $GITHUB_USER/$REPO_NAME"
 
 if [ ! -d ".git" ]; then
     echo "No .git folder found, initializing..."
@@ -266,7 +276,7 @@ if [ ! -d ".git" ]; then
     git remote add origin "\$REMOTE_URL"
     echo "Fetching origin $BRANCH..."
     if ! git fetch origin "$BRANCH" --depth=1; then
-        echo "ERROR: Failed to fetch from remote. Check your PAT, repository name ($user/$repoName), and branch ($BRANCH)."
+        echo "ERROR: Failed to fetch from remote. Check your PAT, repository name ($GITHUB_USER/$REPO_NAME), and branch ($BRANCH)."
         exit 1
     fi
     git checkout -f -B "$BRANCH" origin/"$BRANCH"
@@ -281,7 +291,7 @@ else
 fi
 
 echo "Starting $ENTRY_POINT..."
-node "$ENTRY_POINT"
+${runtime} "$ENTRY_POINT"
 `;
 
     try {
@@ -444,7 +454,10 @@ return {
             id: 'git',
             icon: 'fab fa-github',
             title: 'Git & GitHub',
-            isVisible: (serverId) => true,
+            isVisible: (serverId) => {
+                const details = api.getDetails(serverId);
+                return api.isNodeServer(details) || api.isPythonServer(details);
+            },
             renderPanel: (serverId) => renderPanel(api, serverId),
             onOpen: async (serverId) => {
                 const [isSetup, isConsoleSetup] = await Promise.all([
