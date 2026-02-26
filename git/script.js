@@ -2,7 +2,7 @@
 const PLUGIN_ID = 'git';
 const SIGNATURE = '# BananaBurner Git Plugin';
 const DESCRIPTION = '# This file is managed by the Git plugin. Manual edits may break synchronization.';
-const VERSION = '1.0';
+const VERSION = '1.1';
 
 let currentServerId = null;
 let pluginApi = null;
