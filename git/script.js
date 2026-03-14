@@ -30,18 +30,6 @@ function parseConfigFromScript(content) {
     return null;
 }
 
-function isNodeServer(api, serverId) {
-    const details = api.getDetails(serverId);
-    if (!details) return false;
-    const attrs = details.attributes || details;
-    const startupCommand = (attrs.startup || attrs.startup_command || '').toLowerCase();
-    const dockerImage = (attrs.docker_image || '').toLowerCase();
-
-    return startupCommand.includes('node') ||
-        startupCommand.includes('npm') ||
-        startupCommand.includes('yarn') ||
-        dockerImage.includes('node');
-}
 
 async function checkGitSetup(api, serverId) {
     try {
@@ -139,7 +127,7 @@ window.__git_renderStatus = (serverId, isSetup, isConsoleSetup) => {
                         <span style="font-weight: 600; font-size: 0.9rem;">Console Commands</span>
                     </div>
                     <p style="color: var(--text-secondary); font-size: 0.8rem; margin-bottom: 1rem;">Inject git command handling into the Banana Agent to run git commands from the console.</p>
-                    ${!isNodeServer(BananaAPI, serverId) ? `
+                    ${!BananaAPI.isNodeServer(BananaAPI.getDetails(serverId)) ? `
                         <div style="position: relative;">
                             <button class="btn btn-primary disabled" style="width: 100%; padding: 0.6rem; font-size: 0.85rem; opacity: 0.5; cursor: not-allowed;">Setup Console Commands</button>
                             <div class="banana-tooltip" style="opacity: 1; visibility: visible; transform: translateX(-50%) translateY(0); bottom: calc(100% + 10px);">Node.js Only</div>
