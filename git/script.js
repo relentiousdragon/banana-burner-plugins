@@ -2,7 +2,7 @@
 const PLUGIN_ID = 'git';
 const SIGNATURE = '# BananaBurner Git Plugin';
 const DESCRIPTION = '# This file is managed by the Git plugin. Manual edits may break synchronization.';
-const VERSION = '1.1';
+const VERSION = '1.2';
 
 let currentServerId = null;
 let pluginApi = null;
@@ -232,18 +232,40 @@ window.__git_saveConfig = async (serverId, config) => {
     const user = config.repo.split('/')[0];
     const repoName = config.repo.split('/')[1];
 
-    const details = BananaAPI.getDetails(serverId);
-    const attrs = details?.attributes || details || {};
-
+    const sid = getIdentifier(BananaAPI, serverId);
     let entryPoint = 'index.js';
     let runtime = 'node';
 
-    if (BananaAPI.isPythonServer(details)) {
-        entryPoint = attrs.startup?.START_PY_FILE || attrs.START_PY_FILE || 'main.py';
-        runtime = 'python3';
-    } else {
-        entryPoint = attrs.startup?.START_JS_FILE || attrs.START_JS_FILE || attrs.startup_command?.match(/node\s+([^\s]+)/)?.[1] || 'index.js';
-        runtime = 'node';
+    try {
+        const startupRes = await BananaAPI.proxyFetch(`https://control.bot-hosting.net/api/client/servers/${sid}/startup`, {
+            method: 'GET',
+            headers: BananaAPI.getControlPanelHeaders()
+        });
+        
+        if (startupRes && startupRes.data) {
+            const vars = startupRes.data.data || [];
+            const details = BananaAPI.getDetails(serverId);
+            if (BananaAPI.isPythonServer(details)) {
+                const pyVar = vars.find(v => ['BOT_PY_FILE', 'START_PY_FILE'].includes(v.attributes?.env_variable));
+                entryPoint = pyVar?.attributes?.server_value || pyVar?.attributes?.default_value || 'main.py';
+                runtime = 'python3';
+            } else {
+                const jsVar = vars.find(v => ['BOT_JS_FILE', 'START_JS_FILE', 'MAIN_FILE'].includes(v.attributes?.env_variable));
+                entryPoint = jsVar?.attributes?.server_value || jsVar?.attributes?.default_value || 'index.js';
+                runtime = 'node';
+            }
+        }
+    } catch (e) {
+        console.warn('Git: Failed to fetch startup variables, using fallback detection', e);
+        const details = BananaAPI.getDetails(serverId);
+        const attrs = details?.attributes || details || {};
+        if (BananaAPI.isPythonServer(details)) {
+            entryPoint = attrs.startup?.BOT_PY_FILE || attrs.BOT_PY_FILE || attrs.startup?.START_PY_FILE || attrs.START_PY_FILE || 'main.py';
+            runtime = 'python3';
+        } else {
+            entryPoint = attrs.startup?.BOT_JS_FILE || attrs.BOT_JS_FILE || attrs.startup?.START_JS_FILE || attrs.START_JS_FILE || attrs.startup_command?.match(/node\s+([^\s]+)/)?.[1] || 'index.js';
+            runtime = 'node';
+        }
     }
 
     const shellScript = `#!/bin/bash
@@ -316,12 +338,13 @@ ${runtime} "$ENTRY_POINT"
 
         if (!uploadRes.ok) throw new Error('Failed to upload bb-github.sh');
 
-        const startupRes = await BananaAPI.proxyFetch(`https://control.bot-hosting.net/api/client/servers/${sid}/startup/variable`, {
+        await BananaAPI.proxyFetch(`https://control.bot-hosting.net/api/client/servers/${sid}/startup/variable`, {
             method: 'PUT',
             headers: { ...BananaAPI.getControlPanelHeaders(), 'Content-Type': 'application/json' },
             body: JSON.stringify({ key: 'START_BASH_FILE', value: 'bb-github.sh' })
         });
-
+        
+        BananaAPI.vfsInvalidate(sid, '/');
         return true;
     } catch (e) {
         console.error('Git setup error:', e);
@@ -397,6 +420,7 @@ function gitConsole() {
         });
 
         BananaAPI.storage.set(`console-setup-${serverId}`, 'true');
+        BananaAPI.vfsInvalidate(sid, '/');
         window.__git_renderStatus(serverId, true, true);
         BananaAPI.showToast('Git console commands ready! Please restart your server.', 'success');
     } catch (e) {
