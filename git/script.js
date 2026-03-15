@@ -2,7 +2,7 @@
 const PLUGIN_ID = 'git';
 const SIGNATURE = '# BananaBurner Git Plugin';
 const DESCRIPTION = '# This file is managed by the Git plugin. Manual edits may break synchronization.';
-const VERSION = '1.2';
+const VERSION = '1.3';
 
 let currentServerId = null;
 let pluginApi = null;
@@ -229,7 +229,7 @@ window.__git_saveConfig = async (serverId, config) => {
             method: 'GET',
             headers: BananaAPI.getControlPanelHeaders()
         });
-        
+
         if (startupRes && startupRes.data) {
             const vars = startupRes.data.data || [];
             const details = BananaAPI.getDetails(serverId);
@@ -331,7 +331,7 @@ ${runtime} "$ENTRY_POINT"
             headers: { ...BananaAPI.getControlPanelHeaders(), 'Content-Type': 'application/json' },
             body: JSON.stringify({ key: 'START_BASH_FILE', value: 'bb-github.sh' })
         });
-        
+
         BananaAPI.vfsInvalidate(sid, '/');
         return true;
     } catch (e) {
@@ -481,6 +481,28 @@ return {
         });
 
         api.lockStartupVariable('START_BASH_FILE', 'Controlled by Git', (sid, val) => val === 'bb-github.sh');
+
+        api.on('startupSaved', async (data) => {
+            const { serverId, variables } = data;
+            const entryPool = ['BOT_JS_FILE', 'START_JS_FILE', 'MAIN_FILE', 'BOT_PY_FILE', 'START_PY_FILE'];
+            const entryVar = (variables || []).find(v => entryPool.includes(v.name));
+
+            if (entryVar) {
+                const config = api.storage.getJSON(`config-${serverId}`);
+                const isSetup = api.storage.get(`setup-${serverId}`) === 'true';
+
+                if (isSetup && config && window.__git_saveConfig) {
+                    try {
+                        const success = await window.__git_saveConfig(serverId, config);
+                        if (success) {
+                            api.showToast('Git entry point updated.', 'success');
+                        }
+                    } catch (e) {
+                        console.error('Git:', e);
+                    }
+                }
+            }
+        });
     },
     checkGitSetup: (api, serverId) => checkGitSetup(api, serverId),
     destroy() {
