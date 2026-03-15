@@ -37,7 +37,6 @@ async function checkGitSetup(api, serverId) {
         const content = await api.getFileContents(sid, '/bb-github.sh');
         if (!content) return false;
 
-        // More robust verification: check if signature and description exist anywhere in the file
         const isValid = content.includes(SIGNATURE) && content.includes(DESCRIPTION);
 
         if (isValid && !api.storage.get(`setup-${serverId}`)) {
@@ -50,7 +49,7 @@ async function checkGitSetup(api, serverId) {
 
         return isValid;
     } catch (e) {
-        console.error('Git: Setup check failed:', e);
+        if (api.CONFIG.DEBUG) api.log('ERROR', `Git: Setup check failed: ${e.message}`);
         return false;
     }
 }
@@ -485,24 +484,25 @@ return {
 
         api.on('startupSaved', async (data) => {
             const { serverId, variables } = data;
-            if (api.CONFIG.DEBUG) console.log(`[GitPlugin] Received startupSaved for server ${serverId}`, variables);
+            if (api.CONFIG.DEBUG) api.log('DEBUG', `Received startupSaved for server ${serverId}`);
             const entryPool = ['BOT_JS_FILE', 'START_JS_FILE', 'MAIN_FILE', 'BOT_PY_FILE', 'START_PY_FILE'];
             const entryVar = (variables || []).find(v => entryPool.includes(v.name));
 
             if (entryVar) {
                 const config = api.storage.getJSON(`config-${serverId}`);
                 const isSetup = api.storage.get(`setup-${serverId}`) === 'true';
-                
-                if (api.CONFIG.DEBUG) console.log(`[GitPlugin] Entry point change detected. isSetup: ${isSetup}, config exists: ${!!config}`);
+
+                if (api.CONFIG.DEBUG) api.log('DEBUG', `Entry point change detected. isSetup: ${isSetup}, config exists: ${!!config}`);
 
                 if (isSetup && config && window.__git_saveConfig) {
                     try {
                         const success = await window.__git_saveConfig(serverId, config);
                         if (success) {
                             api.showToast('Git entry point updated.', 'success');
+                            api.log('SUCCESS', 'Git entry point updated automatically');
                         }
                     } catch (e) {
-                        console.error('Git:', e);
+                        api.log('ERROR', `Git Auto-Update: ${e.message}`);
                     }
                 }
             }
