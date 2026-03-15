@@ -489,8 +489,14 @@ return {
             const entryVar = (variables || []).find(v => entryPool.includes(v.name));
 
             if (entryVar) {
+                let isSetup = api.storage.get(`setup-${serverId}`) === 'true';
+
+                if (!isSetup) {
+                    if (api.CONFIG.DEBUG) api.log('DEBUG', 'Storage says not setup, checking filesystem for Git config...');
+                    isSetup = await checkGitSetup(api, serverId);
+                }
+
                 const config = api.storage.getJSON(`config-${serverId}`);
-                const isSetup = api.storage.get(`setup-${serverId}`) === 'true';
 
                 if (api.CONFIG.DEBUG) api.log('DEBUG', `Entry point change detected. isSetup: ${isSetup}, config exists: ${!!config}`);
 
