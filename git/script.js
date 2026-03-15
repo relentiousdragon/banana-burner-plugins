@@ -37,8 +37,8 @@ async function checkGitSetup(api, serverId) {
         const content = await api.getFileContents(sid, '/bb-github.sh');
         if (!content) return false;
 
-        const lines = content.split('\n');
-        const isValid = lines[1]?.trim() === SIGNATURE && lines[2]?.trim() === DESCRIPTION && lines[3]?.trim() === `# v${VERSION}`;
+        // More robust verification: check if signature and description exist anywhere in the file
+        const isValid = content.includes(SIGNATURE) && content.includes(DESCRIPTION);
 
         if (isValid && !api.storage.get(`setup-${serverId}`)) {
             const recovered = parseConfigFromScript(content);
@@ -50,6 +50,7 @@ async function checkGitSetup(api, serverId) {
 
         return isValid;
     } catch (e) {
+        console.error('Git: Setup check failed:', e);
         return false;
     }
 }
@@ -484,12 +485,15 @@ return {
 
         api.on('startupSaved', async (data) => {
             const { serverId, variables } = data;
+            if (api.CONFIG.DEBUG) console.log(`[GitPlugin] Received startupSaved for server ${serverId}`, variables);
             const entryPool = ['BOT_JS_FILE', 'START_JS_FILE', 'MAIN_FILE', 'BOT_PY_FILE', 'START_PY_FILE'];
             const entryVar = (variables || []).find(v => entryPool.includes(v.name));
 
             if (entryVar) {
                 const config = api.storage.getJSON(`config-${serverId}`);
                 const isSetup = api.storage.get(`setup-${serverId}`) === 'true';
+                
+                if (api.CONFIG.DEBUG) console.log(`[GitPlugin] Entry point change detected. isSetup: ${isSetup}, config exists: ${!!config}`);
 
                 if (isSetup && config && window.__git_saveConfig) {
                     try {
