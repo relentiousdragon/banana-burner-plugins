@@ -65,7 +65,7 @@ window.__bsmExecuteBulkAction = async (action) => {
                     }
 
                     if (!identifier) {
-                        console.error(`[BSM] Could not resolve identifier for server ID: ${serverId}`);
+                        BananaAPI.log('ERROR', `[BSM] Could not resolve identifier for server ID: ${serverId}`);
                         failed++;
                     } else {
                         const token = localStorage.getItem('token');
@@ -81,12 +81,12 @@ window.__bsmExecuteBulkAction = async (action) => {
                         if (response && response.ok) {
                             success++;
                         } else {
-                            console.error(`[BSM] Failed action for ${serverId}:`, response?.data || response?.statusText || 'Unknown error');
+                            BananaAPI.log('ERROR', `[BSM] Failed action for ${serverId}:`, response?.data || response?.statusText || 'Unknown error');
                             failed++;
                         }
                     }
                 } catch (e) {
-                    console.error(`[BSM] Exception during action for ${serverId}:`, e);
+                    BananaAPI.log('ERROR', `[BSM] Exception during action for ${serverId}:`, e);
                     failed++;
                 }
 
