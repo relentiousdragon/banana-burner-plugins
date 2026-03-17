@@ -359,7 +359,7 @@ Event listeners are cleaned up automatically on plugin unload.
 #### Built-in Events
 
 | Event               | Payload                               | When it fires                               |
-|-------=-------------|---------------------------------------|---------------------------------------------|
+|---------------------|---------------------------------------|---------------------------------------------|
 | `dashboardRendered` | `null`                                | Dashboard UI finished rendering             |
 | `serversUpdated`    | `Array`                               | Server list refreshed from the panel        |
 | `themeChanged`      | `String`                              | User applied a new theme (returns themeID)  |
