@@ -126,8 +126,8 @@ When installed, this shows a card on the dashboard. When uninstalled, the widget
 
 A few things:
 - `BananaAPI` is a global inside your plugin scope
-- `init(api)` also receives it as a parameter — either works, use whatever feels right
-- You have to return an object with `init()` — that's how the framework starts your plugin
+- `init(api)` also receives it as a parameter - either works, use whatever feels right
+- You have to return an object with `init()` - that's how the framework starts your plugin
 - `destroy()` is optional but please implement it. Kinda annnoying when uninstalled plugins leave garbage behind.
 
 ---
@@ -143,7 +143,7 @@ const user = BananaAPI.getUser();
 
 // All servers from the control panel
 const servers = BananaAPI.getServers();
-// Array of server objects — each has .attributes with name, status, identifier, etc.
+// Array of server objects - each has .attributes with name, status, identifier, etc.
 
 // Grab a specific one
 const server = BananaAPI.getServerById("a1b2c3");
