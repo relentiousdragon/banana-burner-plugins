@@ -53,12 +53,12 @@ async function scanServer(api, server) {
                 return;
             }
         } catch (e) {
-            console.error(`[BotIdentity] Scan failed:`, e);
+            api.log('ERROR', `[BotIdentity] Scan failed:`, e);
         }
     }
 
     if (api.storage.getJSON(`bot-info-${identifier}`)) {
-        console.log(`[BotIdentity] No token found for ${identifier}. Clearing cache.`);
+        api.log('PLUGIN', `[BotIdentity] No token found for ${identifier}. Clearing cache.`);
         api.storage.remove(`bot-info-${identifier}`);
         api.storage.remove(`discord-cache-${identifier}`);
         identityCache.delete(identifier);
@@ -92,14 +92,14 @@ async function fetchDiscordIdentity(api, identifier, data) {
 
             api.refreshDashboard();
         } else if (response && (response.status === 401 || (response.data && response.data.message && response.data.message.includes('401')))) {
-            console.log(`[BotIdentity] 401 Unauthorized for ${identifier}. Clearing token.`);
+            api.log('PLUGIN', `[BotIdentity] 401 Unauthorized for ${identifier}. Clearing token.`);
             api.storage.remove(`bot-info-${identifier}`);
             api.storage.remove(`discord-cache-${identifier}`);
             identityCache.delete(identifier);
             api.refreshDashboard();
         }
     } catch (e) {
-        console.error(`[BotIdentity] Fetch failed for ${identifier}:`, e);
+        api.log('ERROR', `[BotIdentity] Fetch failed for ${identifier}:`, e);
     }
 }
 
