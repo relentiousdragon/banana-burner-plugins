@@ -37,7 +37,7 @@ Feel free to create a PR with additions or modifications to these docs!
 
 ## How It Works
 
-Plugins are just JavaScript files. You write one, upload it to the marketplace backend, and users can install it from the Market. When installed, the script gets downloaded and cached in their browser. it runs on every page load.
+Plugins are just JavaScript files. You write one, upload it to the marketplace backend by sending it to one of the devs for review, and users can install it from the Market. When installed, the script gets downloaded and cached in their browser. it runs on every page load.
 
 You get a `BananaAPI` object that lets you tap into stuff like user data, server list, dashboard, storage, toasts, modals, events.
 
