@@ -443,7 +443,7 @@ const PacmanGame = (function () {
 
 return {
     init: function (api) {
-        console.log('[Pacman] Plugin initialized');
+        api.log('PLUGIN', '[Pacman] Plugin initialized');
 
         api.addModuleFooterInjection('servers', () => {
             return `
@@ -484,6 +484,6 @@ return {
     destroy: function () {
         if (gameInterval) clearInterval(gameInterval);
         if (checkInterval) clearInterval(checkInterval);
-        console.log('[Pacman] Plugin unloaded');
+        api.log('PLUGIN', '[Pacman] Plugin unloaded');
     }
 };
