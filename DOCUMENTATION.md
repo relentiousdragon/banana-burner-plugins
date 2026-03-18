@@ -688,7 +688,7 @@ Name collisions. Check that your `window.__` functions and CSS selectors are spe
 ### "Uninstall doesn't clean up"
 Your `destroy()` is incomplete. Double check you're removing every widget, clearing every interval, and deleting every `window.__` function you set.
 
-### I'm bald
+### "I'm bald"
 Too bald.
 
 ---
