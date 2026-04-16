@@ -43,6 +43,11 @@ You get a `BananaAPI` object that lets you tap into stuff like user data, server
 
 **Important**: Plugins run in the same page context as the main script. Theres no iframe sandbox or anything like that. So dont be dumb with it, if you break something, it breaks for the user.
 
+
+## How to install a local plugin for development and testing to BananaBurner
+
+Open your browser's DevTools console and enter ``BananaBurner.setDevMode(true)``, this should enable Developer Mode, you can now head to the Market tab and into the "Local" sub tab, here you can import a plugin folder and it should load.
+
 ---
 
 ## Plugin Structure
