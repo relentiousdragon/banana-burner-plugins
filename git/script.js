@@ -2,7 +2,7 @@
 const PLUGIN_ID = 'git';
 const SIGNATURE = '# BananaBurner Git Plugin';
 const DESCRIPTION = '# This file is managed by the Git plugin. Manual edits may break synchronization.';
-const VERSION = '1.3';
+const VERSION = '1.3.1';
 
 let currentServerId = null;
 let pluginApi = null;
@@ -152,68 +152,85 @@ window.__git_openSetupModal = (serverId) => {
     }
     const config = BananaAPI.storage.getJSON(`config-${serverId}`, { repo: '', branch: 'main', pat: '' });
 
-    BananaAPI.openConfirmModal(
-        'Setup GitHub Repository',
-        `
-        <div style="text-align: left; display: flex; flex-direction: column; gap: 1rem;">
+    const existing = document.getElementById('git-custom-modal');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'git-custom-modal';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;';
+
+    const box = document.createElement('div');
+    box.style.cssText = 'background:var(--bg-secondary,#1e1e2e);border:1px solid var(--border-light,#333);border-radius:12px;padding:1.5rem;width:420px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,0.5);';
+    box.innerHTML = `
+        <h3 style="margin:0 0 1.25rem 0;font-size:1rem;">Setup GitHub Repository</h3>
+        <div style="display:flex;flex-direction:column;gap:1rem;">
             <div>
-                <label style="display: block; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.4rem;">Repository (e.g. username/repo)</label>
-                <input type="text" id="git-repo" class="modern-input notranslate" style="width: 100%;" value="${config.repo}" placeholder="DevSeige-Studios/WaterfallBot">
+                <label style="display:block;font-size:0.8rem;color:var(--text-secondary);margin-bottom:0.4rem;">Repository (e.g. username/repo)</label>
+                <input type="text" id="git-repo" class="modern-input notranslate" style="width:100%;box-sizing:border-box;" value="${config.repo}" placeholder="username/repo">
             </div>
             <div>
-                <label style="display: block; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.4rem;">Branch</label>
-                <input type="text" id="git-branch" class="modern-input notranslate" style="width: 100%;" value="${config.branch}" placeholder="main">
+                <label style="display:block;font-size:0.8rem;color:var(--text-secondary);margin-bottom:0.4rem;">Branch</label>
+                <input type="text" id="git-branch" class="modern-input notranslate" style="width:100%;box-sizing:border-box;" value="${config.branch}" placeholder="main">
             </div>
             <div>
-                <label style="display: block; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.4rem;">Personal Access Token (Optional)</label>
-                <input type="password" id="git-pat" class="modern-input" style="width: 100%;" value="${config.pat}" placeholder="ghp_...">
+                <label style="display:block;font-size:0.8rem;color:var(--text-secondary);margin-bottom:0.4rem;">Personal Access Token (Optional)</label>
+                <input type="password" id="git-pat" class="modern-input" style="width:100%;box-sizing:border-box;" value="${config.pat}" placeholder="ghp_...">
             </div>
         </div>
-        `,
-        async () => {
-            const repo = document.getElementById('git-repo').value.trim();
-            const branch = document.getElementById('git-branch').value.trim() || 'main';
-            const pat = document.getElementById('git-pat').value.trim();
+        <div style="display:flex;justify-content:flex-end;gap:0.75rem;margin-top:1.5rem;">
+            <button id="git-modal-cancel" class="btn btn-secondary" style="padding:0.5rem 1.2rem;">Cancel</button>
+            <button id="git-modal-save" class="btn btn-primary" style="padding:0.5rem 1.2rem;">Save Settings</button>
+        </div>
+    `;
 
-            if (!repo) {
-                BananaAPI.showToast('Repository name is required', 'error');
-                return;
-            }
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
 
-            const modal = document.querySelector('.bananaa-modal.visible');
-            const confirmBtn = modal?.querySelector('.btn-confirm');
-            if (confirmBtn) {
-                confirmBtn.disabled = true;
-                confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
-            }
+    const closeModal = () => overlay.remove();
 
-            isSettingUp = true;
-            window.__git_renderStatus(serverId, false, false);
-            BananaAPI.showToast('Setting up git...', 'info');
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeModal(); });
+    box.querySelector('#git-modal-cancel').onclick = closeModal;
 
-            try {
-                const success = await window.__git_saveConfig(serverId, { repo, branch, pat });
-                if (success) {
-                    BananaAPI.storage.set(`config-${serverId}`, { repo, branch, pat });
-                    BananaAPI.storage.set(`setup-${serverId}`, 'true');
+    box.querySelector('#git-modal-save').onclick = async () => {
+        const repo = document.getElementById('git-repo').value.trim();
+        const branch = document.getElementById('git-branch').value.trim() || 'main';
+        const pat = document.getElementById('git-pat').value.trim();
 
-                    const isConsoleSetup = await checkConsoleSetup(BananaAPI, serverId);
-                    window.__git_renderStatus(serverId, true, isConsoleSetup);
+        if (!repo) {
+            BananaAPI.showToast('Repository name is required', 'error');
+            return;
+        }
 
-                    BananaAPI.refreshDashboard();
-                    BananaAPI.showToast('Git setup complete!', 'success');
-                } else {
-                    window.__git_renderStatus(serverId, false, false);
-                }
-            } catch (e) {
-                console.error('Git setup error:', e);
+        const saveBtn = box.querySelector('#git-modal-save');
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+        closeModal();
+        isSettingUp = true;
+        window.__git_renderStatus(serverId, false, false);
+        BananaAPI.showToast('Setting up git...', 'info');
+
+        try {
+            const success = await window.__git_saveConfig(serverId, { repo, branch, pat });
+            if (success) {
+                BananaAPI.storage.set(`config-${serverId}`, { repo, branch, pat });
+                BananaAPI.storage.set(`setup-${serverId}`, 'true');
+
+                const isConsoleSetup = await checkConsoleSetup(BananaAPI, serverId);
+                window.__git_renderStatus(serverId, true, isConsoleSetup);
+
+                BananaAPI.refreshDashboard();
+                BananaAPI.showToast('Git setup complete!', 'success');
+            } else {
                 window.__git_renderStatus(serverId, false, false);
-            } finally {
-                isSettingUp = false;
             }
-        },
-        'Save Settings'
-    );
+        } catch (e) {
+            console.error('Git setup error:', e);
+            window.__git_renderStatus(serverId, false, false);
+        } finally {
+            isSettingUp = false;
+        }
+    };
 };
 
 window.__git_saveConfig = async (serverId, config) => {
@@ -255,6 +272,13 @@ window.__git_saveConfig = async (serverId, config) => {
             runtime = 'node';
         }
     }
+
+    setTimeout(() => {
+        const modalP = document.querySelector('.bananaa-modal.visible p[style*="line-height: 1.5"]');
+        if (modalP) {
+            modalP.innerHTML = modalP.textContent;
+        }
+    }, 10);
 
     const shellScript = `#!/bin/bash
 ${SIGNATURE}
