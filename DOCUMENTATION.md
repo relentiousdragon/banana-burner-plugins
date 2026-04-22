@@ -338,8 +338,10 @@ BananaAPI.openConfirmModal(
         // user clicked confirm
         doTheDeletion();
     },
-    'Delete',  // button text
-    true       // isDanger, makes the button red
+    'Delete',  // confirmText (optional, default: 'Confirm')
+    true,      // isDanger (optional, makes the button red)
+    () => { }, // onCancel (optional, called if closed/cancelled)
+    true       // isHTML (optional, set to true if message contains HTML)
 );
 
 // Append a log to server's console
