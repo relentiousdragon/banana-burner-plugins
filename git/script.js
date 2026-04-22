@@ -212,7 +212,10 @@ window.__git_openSetupModal = (serverId) => {
                 isSettingUp = false;
             }
         },
-        'Save Settings'
+        'Save Settings',
+        null,
+        null,
+        true
     );
 };
 
