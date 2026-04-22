@@ -471,7 +471,14 @@ return {
             title: 'Git & GitHub',
             isVisible: (serverId) => {
                 const details = api.getDetails(serverId);
-                return api.isNodeServer(details) || api.isPythonServer(details);
+                const isNode = api.isNodeServer(details);
+                const isPython = api.isPythonServer(details);
+
+                if (api.CONFIG.DEBUG && !isNode && !isPython) {
+                    api.log('DEBUG', `Git pullout flag hidden for ${serverId}. Details cached ${!!details}`);
+                }
+
+                return isNode || isPython;
             },
             renderPanel: (serverId) => renderPanel(api, serverId),
             onOpen: async (serverId) => {
