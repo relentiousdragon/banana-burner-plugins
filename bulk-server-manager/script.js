@@ -184,13 +184,11 @@ return {
             if (!isSelected && !isExecuting) return '';
 
             return `
-                <div class="bsm-selection-indicator" style="position: absolute; top: 10px; left: 10px; z-index: 10; pointer-events: none;">
-                    <div style="background: ${isSelected ? 'var(--accent-primary)' : 'transparent'}; border: 2px solid ${isSelected ? 'var(--accent-primary)' : 'var(--border-light)'}; width: 20px; height: 20px; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: white; transition: all 0.2s;">
-                        ${isSelected ? '<i class="fas fa-check" style="font-size: 10px;"></i>' : ''}
-                    </div>
-                </div>
-                ${isSelected ? '<div style="position: absolute; inset: 0; border: 2px solid var(--accent-primary); pointer-events: none; border-radius: inherit; box-shadow: inset 0 0 10px rgba(var(--accent-primary-rgb), 0.2); z-index: 5;"></div>' : ''}
-                ${isExecuting ? '<div style="position: absolute; inset: 0; background: rgba(0,0,0,0.1); cursor: wait; z-index: 20;"></div>' : ''}
+                ${isSelected ? `
+                <div class="bsm-selection-overlay" style="position: absolute; inset: 0; border: 2px solid var(--accent-primary); pointer-events: none; border-radius: var(--border-radius, 12px); z-index: 5;">
+                    <div style="position: absolute; inset: 0; background: var(--accent-primary); opacity: 0.1; border-radius: inherit;"></div>
+                </div>` : ''}
+                ${isExecuting ? '<div class="bsm-executing-overlay" style="position: absolute; inset: 0; background: rgba(0,0,0,0.1); cursor: wait; z-index: 20; border-radius: var(--border-radius, 12px);"></div>' : ''}
             `;
         });
 
