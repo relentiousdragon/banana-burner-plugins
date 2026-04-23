@@ -1,7 +1,7 @@
 {
   "name": "Git",
   "author": "paccman_0",
-  "version": "3.2",
+  "version": "3.5",
   "timestamp": "1771940111",
   "description": "Integrate GitHub into your server. Synchronize files and run git commands directly from the console. (Node/Python)",
   "downloads": 0
