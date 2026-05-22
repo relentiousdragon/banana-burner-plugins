@@ -421,7 +421,7 @@ BananaAPI.dom.render(`<p>${safe}</p>`, el);
 
 #### `BananaAPI.dom.sanitizeHTML(str)`
 
-Escapes everything first, then re-allows a safe subset of formatting tags: `<b>`, `<i>`, `<u>`, `<code>`, `<br>`, `<span>`, `<small>`. For `<span>` and `<small>`, only `style`, `class`, `title`, and `id` attributes are allowed — event handlers like `onclick` and stuff like `javascript:` URIs are stripped.
+Escapes everything first, then re-allows a safe subset of formatting tags: `<b>`, `<i>`, `<u>`, `<code>`, `<br>`, `<span>`, `<small>`. For `<span>` and `<small>`, only `style`, `class`, `title`, and `id` attributes are allowed - event handlers like `onclick` and stuff like `javascript:` URIs are stripped.
 
 ```js
 const formatted = BananaAPI.dom.sanitizeHTML(descriptionFromAPI);
