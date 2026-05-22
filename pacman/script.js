@@ -394,7 +394,13 @@ const PacmanGame = (function () {
         function eatenPill() { eatenCount = 0; for (var i = 0; i < ghosts.length; i += 1) { ghosts[i].makeEatable(ctx); } };
         function completedLevel() { level += 1; map.reset(); user.newLevel(); startLevel(); };
 
+        function destroy() {
+            document.removeEventListener("keydown", keyDown, true);
+            if (gameInterval) clearInterval(gameInterval);
+        }
+
         function init(wrapper) {
+            destroy();
             var maxWidth = Math.min(wrapper.offsetWidth, 450);
             var blockSize = Math.floor(maxWidth / 19), canvas = document.createElement("canvas");
             canvas.width = (blockSize * 19); canvas.height = (blockSize * 22) + 30;
@@ -404,14 +410,14 @@ const PacmanGame = (function () {
             wrapper.style.minHeight = "auto";
             ctx = canvas.getContext('2d'); audio = new Pacman.Audio(); map = new Pacman.Map(blockSize);
             user = new Pacman.User({ "completedLevel": completedLevel, "eatenPill": eatenPill }, map);
+            ghosts = [];
             for (var i = 0; i < ghostSpecs.length; i += 1) { ghosts.push(new Pacman.Ghost({ "getTick": getTick }, map, ghostSpecs[i])); }
             map.draw(ctx); dialog("Press N to Start");
             document.addEventListener("keydown", keyDown, true);
-            if (gameInterval) clearInterval(gameInterval);
             gameInterval = setInterval(mainLoop, 1000 / Pacman.FPS);
         };
 
-        return { "init": init };
+        return { "init": init, "destroy": destroy };
     }());
 
     Pacman.MAP_DATA = [
@@ -459,7 +465,7 @@ return {
                                 </div>
                             </div>
                             
-                            <div id="bh-pacman-game" style="width: 100%; max-width: 450px; border-radius: 8px; overflow: hidden; background: #000; border: 2px solid #2e2e2e; position: relative; display: flex; align-items: center; justify-content: center;">
+                            <div id="bh-pacman-game" data-bh-ignore="true" style="width: 100%; max-width: 450px; border-radius: 8px; overflow: hidden; background: #000; border: 2px solid #2e2e2e; position: relative; display: flex; align-items: center; justify-content: center;">
                                 <div style="color: var(--text-secondary); font-size: 0.9em;">Initializing Game...</div>
                             </div>
                             
@@ -482,7 +488,7 @@ return {
         checkInterval = setInterval(checkAndInit, 1000);
     },
     destroy: function () {
-        if (gameInterval) clearInterval(gameInterval);
+        PacmanGame.destroy();
         if (checkInterval) clearInterval(checkInterval);
         api.log('PLUGIN', '[Pacman] Plugin unloaded');
     }
