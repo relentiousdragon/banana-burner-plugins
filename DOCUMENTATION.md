@@ -16,6 +16,10 @@ Feel free to create a PR with additions or modifications to these docs!
   - [Dashboard Widgets](#dashboard-widgets)
   - [UI Hooks](#ui-hooks)
   - [Storage](#storage)
+  - [Reactive Store](#reactive-store)
+  - [DOM Utilities](#dom-utilities)
+  - [Bypass DOM Morphing](#bypassing-dom-morphing-data-bh-ignore)
+  - [Async Storage (IndexedDB)](#async-storage-indexeddb)
   - [Notifications](#notifications)
   - [Events](#events)
   - [API Proxy](#api-proxy)
@@ -42,11 +46,6 @@ Plugins are just JavaScript files. You write one, publish it to the Market by se
 You get a `BananaAPI` object that lets you tap into stuff like user data, server list, dashboard, storage, toasts, modals, events.
 
 **Important**: Plugins run in the same page context as the main script. Theres no iframe sandbox or anything like that. So dont be dumb with it, if you break something, it breaks for the user.
-
-
-## How to install a local plugin for development and testing to BananaBurner
-
-Open your browser's DevTools console and enter ``BananaBurner.setDevMode(true)``, this should enable Developer Mode, you can now head to the Market tab and into the "Local" sub tab, here you can import a plugin folder and it should load.
 
 ---
 
@@ -135,6 +134,31 @@ A few things:
 - You have to return an object with `init()` - that's how the framework starts your plugin
 - `destroy()` is optional but please implement it. Kinda annnoying when uninstalled plugins leave garbage behind.
 
+### Waiting for App Initialization
+
+BananaBurner has a startup sequence (splash screen, panel sync, stuff) and your plugin's `init()` might run before the server list is ready. If your plugin needs to scan servers immediately, use this pattern:
+
+```js
+function runDiscovery(api) {
+    // Wait for the app to be fully synced
+    if (!api.getState().mainAppInitialized) {
+        setTimeout(() => runDiscovery(api), 1000);
+        return;
+    }
+
+    const servers = api.getServers();
+    // ... do your schtuff
+}
+```
+
+Or listen for the `serversUpdated` event:
+
+```js
+api.on('serversUpdated', (servers) => {
+    // This fires as soon as the panel sync finishes
+});
+```
+
 ---
 
 ## BananaAPI
@@ -148,13 +172,18 @@ const user = BananaAPI.getUser();
 
 // All servers from the control panel
 const servers = BananaAPI.getServers();
-// Array of server objects - each has .attributes with name, status, identifier, etc.
 
-// Grab a specific one
+// Grab a specific one (works for owned & shared servers)
 const server = BananaAPI.getServerById("a1b2c3");
 
-// Get a cached server details object
-const detail = BananaAPI.getDetails("a1b2c3");
+// Note: Owned servers have .serverid at the top level.
+// Shared servers might only have .attributes.identifier.
+
+// Get a unique identifier from any server object:
+const id = server.serverid || server.attributes?.identifier || server.identifier;
+
+// Get a cached server details object (contains suspension status, renewal dates, etc)
+const detail = BananaAPI.getDetails(id);
 
 // Server type detection, only for Node and Python for now, you can probably figure out if a server has another egg from it's startup command  and variables, the docker image for example.
 const isNode = BananaAPI.isNodeServer(detail);
@@ -321,6 +350,147 @@ Storage is just localStorage under the hood, so:
 - ~5MB per domain, shared with everything else
 - Don't store huge blobs of data
 - Objects get JSON.stringify'd automatically, you just pass the object
+
+### Reactive Store
+
+Create a reactive state object for your plugin. When you set a property, listeners fire automatically. No manual event dispatching needed.
+
+```js
+const store = BananaAPI.createStore({
+    count: 0,
+    items: [],
+    settings: { theme: 'dark' }
+});
+
+// Listen to a specific property
+store.on('count', (newValue) => {
+    BananaAPI.log('PLUGIN', 'Count is now:', newValue);
+    BananaAPI.refreshWidget('my-widget');
+});
+
+// Listen to ALL changes
+store.on('*', ({ prop, value, oldVal }) => {
+    BananaAPI.log('DEBUG', `${prop}: ${oldVal} → ${value}`);
+});
+
+// Just set a value and the listeners fire
+store.count = 42;
+store.settings.theme = 'light'; // nested objects are reactive too
+```
+
+You can also use `.emit()` for custom events that aren't tied to a property:
+
+```js
+store.on('dataReady', (payload) => { /* ... */ });
+store.emit('dataReady', { servers: myServers });
+```
+
+**Rules:**
+- Pass a plain object, not an array or null
+- Nested objects are automatically wrapped in reactive proxies (uses `WeakMap` caching)
+- Writes to `__proto__`, `constructor`, `prototype` are silently blocked
+- Each plugin gets its own store, they don't share state
+
+### DOM Utilities
+
+Safe DOM rendering methods. Uses an inert `<template>` element under the hood, so no script execution happens during HTML parsing.
+
+#### `BananaAPI.dom.render(html, target)`
+
+Render an HTML string into a DOM element. **Replaces all children** of the target.
+
+```js
+const container = document.getElementById('my-widget-body');
+BananaAPI.dom.render(`
+    <div style="padding: 1rem;">
+        <p>${BananaAPI.dom.escapeHTML(userName)} has ${count} servers</p>
+    </div>
+`, container);
+```
+
+This is safer and faster than `innerHTML` - parsing happens on a detached element, then nodes are moved via `replaceChildren()`.
+
+#### `BananaAPI.dom.escapeHTML(str)`
+
+Escapes `& < > " '`. Use this for **any** user-provided data you stick into HTML strings.
+
+```js
+const safe = BananaAPI.dom.escapeHTML(userInput);
+BananaAPI.dom.render(`<p>${safe}</p>`, el);
+```
+
+#### `BananaAPI.dom.sanitizeHTML(str)`
+
+Escapes everything first, then re-allows a safe subset of formatting tags: `<b>`, `<i>`, `<u>`, `<code>`, `<br>`, `<span>`, `<small>`. For `<span>` and `<small>`, only `style`, `class`, `title`, and `id` attributes are allowed — event handlers like `onclick` and stuff like `javascript:` URIs are stripped.
+
+```js
+const formatted = BananaAPI.dom.sanitizeHTML(descriptionFromAPI);
+```
+
+#### Bypassing DOM Morphing (`data-bh-ignore`)
+
+BananaBurner uses a reactive state system and a fast DOM morpher under the hood to automatically update the dashboard, widgets, and panel views when state changes.
+
+While this is great for standard HTML-based rendering, it can cause problems for dynamic elements like `<canvas>`, games, video players, complex interactive libraries, or external chart widgets that are initialized and manipulated directly via JavaScript post-render. The morphing engine might see a clean template string and reset, recreate, or delete these live dynamic elements.
+
+To prevent this, you can decorate any element or parent container with the `data-bh-ignore="true"` attribute.
+
+When the morphing engine encounters `data-bh-ignore` (or any element that is inside a container with `data-bh-ignore`), it completely skips morphing that subtree and leaves the live DOM element (and all its children, event listeners, and JavaScript-injected content) untouched.
+
+##### Example:
+
+```js
+BananaAPI.addModuleFooterInjection('servers', () => {
+    return `
+        <div class="my-widget" style="padding: 1.5rem;">
+            <h3>Live Stats Graph</h3>
+            <!-- data-bh-ignore prevents the chart canvas from resetting on state changes -->
+            <div id="my-chart-container" data-bh-ignore="true" style="width: 100%; height: 200px;">
+                <canvas id="my-live-canvas"></canvas>
+            </div>
+        </div>
+    `;
+});
+```
+
+---
+
+### Async Storage (IndexedDB)
+
+For when localStorage isn't enough. Backed by IndexedDB, so you get way more space and it handles large objects without blocking.
+
+All keys are automatically namespaced with `plugin:yourpluginid:` so you can't read another plugin's data.
+
+```js
+// Store something
+await BananaAPI.asyncStorage.set('serverLogs', {
+    timestamp: Date.now(),
+    entries: bigLogArray
+});
+
+// Get it back
+const logs = await BananaAPI.asyncStorage.get('serverLogs');
+
+// List your keys (returns unprefixed names)
+const keys = await BananaAPI.asyncStorage.keys();
+// ['serverLogs', 'preferences', ...]
+
+// Delete one key
+await BananaAPI.asyncStorage.remove('serverLogs');
+
+// Nuke all your plugin's stored data
+await BananaAPI.asyncStorage.clear();
+```
+
+**Limits:**
+- Key must be a string, 1–200 characters
+- `__proto__`, `constructor`, `prototype` are rejected as key names
+- No practical size limit per value (IndexedDB quota is usually 50MB+ depending on browser)
+- All methods are `async`, don't forget `await`
+
+**When to use this vs `BananaAPI.storage`:**
+- Use `storage` for small settings, flags, simple config (it's sync and fast)
+- Use `asyncStorage` for large datasets, logs, cached API responses, anything over a few KB
 
 ### Notifications
 
@@ -500,7 +670,7 @@ if (BananaAPI.CONFIG.DEBUG) { BananaAPI.log('DEBUG', 'This only shows if debug m
 
 ```js
 const config = BananaAPI.CONFIG;      // API URLs, version, etc.
-const state  = BananaAPI.getState();  // snapshot of entire app state (read-only)
+const state  = BananaAPI.getState();  // the live global reactive store (reactive and mutable)
 const myId   = BananaAPI.pluginId;    // your plugin's ID string
 ```
 
@@ -671,7 +841,7 @@ function render() {
 
 ### Don't
 
-- **Don't write to `state` directly** - `BananaAPI.getState()` is read-only for a reason.
+- **Be careful when mutating the global `state` directly** - `BananaAPI.getState()` returns the live reactive store. Modifying properties on it will trigger automatic UI re-renders and propagate changes globally, so ensure you only modify relevant properties to avoid unnecessary render loops.
 - **Don't use `eval()` or inject script tags** - Your code is already being run. More dynamic execution is probably bad.
 - **Don't spam proxy fetch** - Cache what you can.
 - **Don't block the main thread** - Heavy work goes in `async` functions or `setTimeout`. The dashboard shouldn't freeze.
@@ -687,7 +857,7 @@ Call `addDashboardWidget()` inside `init()`, not at the top of the file. The DOM
 Functions in HTML strings need to be on `window`. `window.__myPlugin_doThing()` works, `myFunction()` doesn't (it's not in scope when the HTML is stringified) also make sure you're registering the `window` functions before calling `render`.
 
 ### "My data disappears after reload"
-You're storing in a variable. Variables reset every page load. Use `BananaAPI.storage` for anything that needs to persist.
+You're storing in a variable. Variables reset every page load. Use `BananaAPI.storage` or ``BananaAPI.asyncStorage`` for anything that needs to persist.
 
 ### "My plugin breaks another plugin"
 Name collisions. Check that your `window.__` functions and CSS selectors are specific enough that they won't stomp on something else.
@@ -695,7 +865,24 @@ Name collisions. Check that your `window.__` functions and CSS selectors are spe
 ### "Uninstall doesn't clean up"
 Your `destroy()` is incomplete. Double check you're removing every widget, clearing every interval, and deleting every `window.__` function you set.
 
-### "I'm bald"
+### "My canvas / game / interactive widget flickers or resets on state changes"
+BananaBurner re-renders views reactively when state changes (e.g. server list refresh, theme change). If you're injecting a `<canvas>`, a game, or anything that gets populated dynamically by JS *after* the initial render, the DOM morpher will see the clean template and wipe your live element.
+
+Fix it by adding `data-bh-ignore="true"` to the container element in your template:
+
+```js
+api.addModuleFooterInjection('servers', () => `
+    <div>
+        <div id="my-game-wrapper" data-bh-ignore="true">
+            <!-- JS populates this after injection -->
+        </div>
+    </div>
+`);
+```
+
+The morpher will completely skip that subtree and leave your canvas, event listeners, and game state untouched. See [Bypassing DOM Morphing](#bypassing-dom-morphing-data-bh-ignore) above.
+
+### I'm bald
 Too bald.
 
 ---
@@ -837,5 +1024,5 @@ Good luck!
 
 ---
 
-Last Updated: March 17th 2026 04:15 UTC+9:00
+Last Updated: March 17th 2026 04:10 UTC+9:00
 Contributors: @relentiousdragon, @paccman_0 (Discord)
